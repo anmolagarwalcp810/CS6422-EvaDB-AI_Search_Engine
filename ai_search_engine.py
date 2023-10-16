@@ -68,7 +68,7 @@ def create_my_documents(path: str = DEFAULT_PDFS_PATH) -> None:
             cursor.query(load_pdfs_query.format(path, file)).df()
         elif file.endswith(".txt"):
             # add each text file by calling insert_text_file
-            # insert_text_file(f"{path}/file")
+            # insert_text_file(f"{path}/{file}")
             pass
 
     print("MyDocuments table initialized")
