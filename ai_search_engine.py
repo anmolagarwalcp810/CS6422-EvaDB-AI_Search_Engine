@@ -118,7 +118,7 @@ def get_query_results(search_query: str, limit: int = PARAGRAPHS_LIMIT) -> Order
     """
     scored_paragraphs_df = cursor.query(result_query).df()
     scored_documents_df = scored_paragraphs_df.groupby('scored_paragraphs.name')['scored_paragraphs.distance'].mean().to_frame()
-    scored_documents_df = scored_paragraphs_df.sort_values(by='scored_paragraphs.distance', ascending=False)
+    scored_documents_df = scored_documents_df.sort_values(by='scored_paragraphs.distance', ascending=False)
 
     documents_dictionary = OrderedDict()
 
@@ -218,11 +218,11 @@ def process_query():
             print("Exiting...")
             break
         elif query == "SUMMARIZE":
-            print("ChatGPT summarization enabled!")
+            print("Summarization enabled!")
             summarize = True
             continue
         elif query == "NOT SUMMARIZE":
-            print("ChatGPT summarization disabled!")
+            print("Summarization disabled!")
             summarize = False
             continue
         elif query.startswith("LIMIT"):
@@ -238,7 +238,7 @@ def process_query():
         if summarize:
             print(summarize_with_LLM(documents_dictionary))
         print(return_results(documents_dictionary))
-        print("______________________________________________________________________")
+        print("_"*100)
 
 
 # Main program running process_query to get queries from users.
