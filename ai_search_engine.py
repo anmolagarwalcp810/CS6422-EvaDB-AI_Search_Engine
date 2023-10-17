@@ -11,7 +11,6 @@ import warnings
 """
 
 warnings.filterwarnings("ignore")
-
 # This cursor will be used through the whole code to run AI queries
 print("Connecting to evaDB")
 cursor = evadb.connect().cursor()
@@ -22,6 +21,7 @@ PARAGRAPHS_LIMIT = 10
 DEFAULT_PDFS_PATH = "./pdfs"
 DEFAULT_SENTENCE_FEATURE_EXTRACTOR_PATH = "./functions/sentence_feature_extractor.py"
 
+
 # Break txt document into paragraphs (similar to how we do for pdf) and insert into my Documents.
 def insert_text_file(name: str, path: str) -> None:
     try:
@@ -31,34 +31,39 @@ def insert_text_file(name: str, path: str) -> None:
 
     data = file.read().split("\n")
 
-    values = []
-    for i in range(len(data)):
-        temp_data = "'{}', 1, {}, '{}'".format(name, i+1, data[i])
-        if i == 0:
-            values.append("("+temp_data)
-        elif i==len(data)-1:
-            values.append(temp_data+");")
-        else:
-            values.append(temp_data)
-
-    values = "),\n(".join(values)
-
     # insertion query
-    insert_query = f"""
+    insert_query = """
         INSERT INTO MyDocument(name, page, paragraph, data) VALUES
-        {values}
+        {}
     """
-    cursor.query(insert_query).df()
+
+    for i in range(len(data)):
+        if(data[i].isspace()):
+            continue
+        values = "('{}', 1, {}, '{}');".format(name, i+1, data[i])
+        cursor.query(insert_query.format(values)).df()
+
 
 # this function will take care of merging PDFs into overall MyDocuments table containing both text and pdf data
 def merge_pdfs():
-    # TODO: Merge MyPDFs into MyDocuments table
-    pass
+    mypdfs_df = cursor.query("SELECT * FROM MyPDFs").df()
+
+    # insert query
+    insert_query = """
+        INSERT INTO MyDocuments(name, page, paragraph, data) VALUES
+        ('{}', {}, {}, '{}');
+    """
+
+    # insert all data from MyPDFs into MyDocuments
+    for index, row in mypdfs_df.iterrows():
+        cursor.query(insert_query.format(row['mypdfs.name'], row['mypdfs.page'], row['mypdfs.paragraph'], row['mypdfs.data'])).df()
+
 
 # Create database MyDocuments from files stored in pdfs/
 def create_my_documents(path: str = DEFAULT_PDFS_PATH) -> None:
     drop_table_query = "DROP TABLE IF EXISTS MyDocuments"
-    load_pdfs_query = "LOAD PDF '{}/{}' INTO MyDocuments"
+    drop_pdfs_query = "DROP TABLE IF EXISTS MyPDFs"
+    load_pdfs_query = "LOAD PDF '{}/{}' INTO MyPDFs"
     # drop table if exists
     cursor.query(drop_table_query).df()
     files = os.listdir(path)
@@ -68,10 +73,12 @@ def create_my_documents(path: str = DEFAULT_PDFS_PATH) -> None:
             cursor.query(load_pdfs_query.format(path, file)).df()
         elif file.endswith(".txt"):
             # add each text file by calling insert_text_file
-            # insert_text_file(f"{path}/{file}")
-            pass
+            insert_text_file(f"{path}/{file}")
+    
+    merge_pdfs()
 
     print("MyDocuments table initialized")
+
 
 # Create sentence feature extractor function
 def create_sentence_feature_extractor(path: str = DEFAULT_SENTENCE_FEATURE_EXTRACTOR_PATH) -> None:
@@ -83,6 +90,7 @@ def create_sentence_feature_extractor(path: str = DEFAULT_SENTENCE_FEATURE_EXTRA
     cursor.query(create_function_query).df()
 
     print("Sentence Feature Extractor created")
+
 
 # Create vector index for embedding entries in MyDocuments database, so that we can run fast queries later on.
 def create_embeddings_vector_index() -> None:
@@ -134,6 +142,7 @@ def get_query_results(search_query: str, limit: int = PARAGRAPHS_LIMIT) -> Order
 
     return documents_dictionary
 
+
 # Now we output the results of the query
 def return_results(documents_dictionary: OrderedDict) -> str:
     output = []
@@ -147,6 +156,7 @@ def return_results(documents_dictionary: OrderedDict) -> str:
         output.append("-----------------------------------------------")
 
     return '\n'.join(output)
+
 
 # Summarize with LLM if needed
 def summarize_with_LLM(documents_dictionary: OrderedDict) -> str:
@@ -188,6 +198,7 @@ def summarize_with_LLM(documents_dictionary: OrderedDict) -> str:
 
     return df.iloc[0, 0]
 
+
 # create summarization function
 def create_text_summarizer():
     create_summarizer_query = """
@@ -199,12 +210,14 @@ def create_text_summarizer():
     cursor.query(create_summarizer_query).df()
     print("Text summarizer created")
 
+
 # initialize all tables and functions
 def initialize():
     create_my_documents()
     create_sentence_feature_extractor()
     create_text_summarizer()
     create_embeddings_vector_index()
+
 
 # Complete end to end flow of query from user
 def process_query():
