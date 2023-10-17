@@ -3,6 +3,7 @@ import os
 import pandas as pd
 from collections import OrderedDict
 import warnings
+import threading
 
 """
         AI Search Engine
@@ -15,12 +16,15 @@ warnings.filterwarnings("ignore")
 print("Connecting to evaDB")
 cursor = evadb.connect().cursor()
 
-# Few constants
+# Few global variables and constants
 SIMILARITY_THRESHOLD = 0.7
 PARAGRAPHS_LIMIT = 10
 DEFAULT_DOCS_PATH = "./docs"
 DEFAULT_SENTENCE_FEATURE_EXTRACTOR_PATH = "./functions/sentence_feature_extractor.py"
-
+user_defined_limit = PARAGRAPHS_LIMIT
+user_defined_summarize = False
+polling_lock = threading.Lock()
+polling_interval = 10
 
 # Break txt document into paragraphs (similar to how we do for pdf) and insert into my Documents.
 def insert_text_file(name: str, path: str) -> None:
@@ -236,39 +240,54 @@ def initialize():
     create_embeddings_vector_index()
 
 
-# Complete end to end flow of query from user
-def process_query():
-    limit = PARAGRAPHS_LIMIT
-    summarize = False
-    initialize()
-    print("Initialized all tables and functions")
-    while True:
-        query = input("Query: ")
-        if query == "exit":
-            print("Exiting...")
-            break
-        elif query == "SUMMARIZE":
-            print("Summarization enabled!")
-            summarize = True
-            continue
-        elif query == "NOT SUMMARIZE":
-            print("Summarization disabled!")
-            summarize = False
-            continue
-        elif query.startswith("LIMIT"):
-            l = query.split()
-            if len(l) == 2 and l[1].isdecimal():
-                limit = int(l[1])
-                print("Limit set to {}".format(limit))
-            else:
-                print("Invalid input for LIMIT. Syntax: LIMIT INTEGER")
-            continue
-
-        documents_dictionary = get_query_results(query, limit)
-        if summarize:
+def process_one_query() -> bool:
+    query = input("Query: ")
+    if query == "exit":
+        print("Exiting...")
+        return True
+    elif query == "SUMMARIZE":
+        print("Summarization enabled!")
+        summarize = True
+    elif query == "NOT SUMMARIZE":
+        print("Summarization disabled!")
+        summarize = False
+    elif query.startswith("LIMIT"):
+        l = query.split()
+        if len(l) == 2 and l[1].isdecimal():
+            limit = int(l[1])
+            print("Limit set to {}".format(limit))
+        else:
+            print("Invalid input for LIMIT. Syntax: LIMIT INTEGER")
+    else:
+        documents_dictionary = get_query_results(query, user_defined_limit)
+        if user_defined_summarize:
             print(summarize_with_LLM(documents_dictionary))
         print(return_results(documents_dictionary))
-        print("_"*100)
+        print("_" * 100)
+    return False
+
+
+# This function repeatedly checks docs folder every 10 seconds and updates database
+# if docs folder has changed.
+def poll_and_update_table():
+    with polling_lock:
+        print("\n\nPolling and updating database if needed\n\n")
+
+    threading.Timer(10, poll_and_update_table).start()
+
+
+# Complete end to end flow of query from user
+def process_query():
+    initialize()
+    poll_and_update_table()
+    print("Initialized all tables and functions")
+    while True:
+        should_break = False
+        with polling_lock:
+            should_break = process_one_query()
+
+        if should_break:
+            break
 
 
 # Main program running process_query to get queries from users.
