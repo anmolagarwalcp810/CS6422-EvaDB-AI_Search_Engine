@@ -18,7 +18,7 @@ cursor = evadb.connect().cursor()
 # Few constants
 SIMILARITY_THRESHOLD = 0.7
 PARAGRAPHS_LIMIT = 10
-DEFAULT_PDFS_PATH = "./pdfs"
+DEFAULT_DOCS_PATH = "./docs"
 DEFAULT_SENTENCE_FEATURE_EXTRACTOR_PATH = "./functions/sentence_feature_extractor.py"
 
 
@@ -33,15 +33,19 @@ def insert_text_file(name: str, path: str) -> None:
 
     # insertion query
     insert_query = """
-        INSERT INTO MyDocument(name, page, paragraph, data) VALUES
-        {}
+        INSERT INTO MyDocuments(name, page, paragraph, data) VALUES
+        {};
     """
 
+    count = 1
     for i in range(len(data)):
-        if(data[i].isspace()):
+        data[i] = data[i].strip()
+        if data[i].isspace() or len(data[i]) == 0:
             continue
-        values = "('{}', 1, {}, '{}');".format(name, i+1, data[i])
+        values = "('{}', 1, {}, '{}')".format(name, count, data[i])
+        # print("New insert query: {}".format(insert_query.format(values)))
         cursor.query(insert_query.format(values)).df()
+        count += 1
 
 
 # this function will take care of merging PDFs into overall MyDocuments table containing both text and pdf data
@@ -60,12 +64,25 @@ def merge_pdfs():
 
 
 # Create database MyDocuments from files stored in pdfs/
-def create_my_documents(path: str = DEFAULT_PDFS_PATH) -> None:
+def create_my_documents(path: str = DEFAULT_DOCS_PATH) -> None:
     drop_table_query = "DROP TABLE IF EXISTS MyDocuments"
     drop_pdfs_query = "DROP TABLE IF EXISTS MyPDFs"
+    create_table_query = """
+        CREATE TABLE MyDocuments (
+            name TEXT(0),
+            page INTEGER,
+            paragraph INTEGER,
+            data TEXT(0)
+        );
+    """
     load_pdfs_query = "LOAD PDF '{}/{}' INTO MyPDFs"
     # drop table if exists
     cursor.query(drop_table_query).df()
+    cursor.query(drop_pdfs_query).df()
+
+    #create table query
+    cursor.query(create_table_query).df()
+
     files = os.listdir(path)
     for file in files:
         if file.endswith(".pdf"):
@@ -73,7 +90,7 @@ def create_my_documents(path: str = DEFAULT_PDFS_PATH) -> None:
             cursor.query(load_pdfs_query.format(path, file)).df()
         elif file.endswith(".txt"):
             # add each text file by calling insert_text_file
-            insert_text_file(f"{path}/{file}")
+            insert_text_file(file, f"{path}/{file}")
     
     merge_pdfs()
 
