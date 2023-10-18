@@ -4,6 +4,7 @@ import pandas as pd
 from collections import OrderedDict
 import warnings
 import time
+from colorama import Fore, Back, Style
 
 """
         AI Search Engine
@@ -23,7 +24,7 @@ DEFAULT_DOCS_PATH = "docs"
 DEFAULT_SENTENCE_FEATURE_EXTRACTOR_PATH = "./functions/sentence_feature_extractor.py"
 user_defined_limit = PARAGRAPHS_LIMIT
 user_defined_summarize = False
-polling_interval = 60
+polling_interval = 10
 
 
 # Break txt document into paragraphs (similar to how we do for pdf) and insert into my Documents.
@@ -186,13 +187,13 @@ def get_query_results(search_query: str, limit: int = PARAGRAPHS_LIMIT) -> Order
 def return_results(documents_dictionary: OrderedDict) -> str:
     output = []
     for key, value in documents_dictionary.items():
-        output.append(key)
+        output.append(f"{Fore.LIGHTYELLOW_EX}{key}")
         count = 0
         for i in value:
-            output.append("Relevant Text {}".format(count))
-            output.append(i[1])
+            output.append(f"{Style.RESET_ALL}\033[1m\033[2m\033[3m\033[4mRelevant Text {count}{Style.RESET_ALL}")
+            output.append(f"{Fore.GREEN}{i[1]}")
             count += 1
-        output.append("-----------------------------------------------")
+        output.append(f"{Fore.LIGHTMAGENTA_EX}{'@'*100}")
 
     return '\n'.join(output)
 
@@ -263,29 +264,31 @@ def process_one_query() -> bool:
     global user_defined_limit
     query = input("Query: ")
     if query == "exit":
-        print("Exiting...")
+        print(f"{Fore.RED}{Back.WHITE}Exiting...{Style.RESET_ALL}")
         return True
     elif query == "SUMMARIZE":
-        print("Summarization enabled!")
+        print(f"{Fore.GREEN}{Back.BLACK}Summarization enabled!{Style.RESET_ALL}")
         user_defined_summarize = True
-    elif query == "NOT SUMMARIZE":
-        print("Summarization disabled!")
+    elif query == "DISABLE SUMMARIZE":
+        print(f"{Fore.GREEN}{Back.BLACK}Summarization disabled!{Style.RESET_ALL}")
         user_defined_summarize = False
     elif query.startswith("LIMIT"):
         l = query.split()
         if len(l) == 2 and l[1].isdecimal():
             user_defined_limit = int(l[1])
-            print("Limit set to {}".format(user_defined_limit))
+            print(f"{Fore.GREEN}{Back.BLACK}Limit set to {user_defined_limit}{Style.RESET_ALL}")
         else:
-            print("Invalid input for LIMIT. Syntax: LIMIT INTEGER")
+            print(f"{Fore.RED}{Back.WHITE}Invalid input for LIMIT. Syntax: LIMIT INTEGER{Style.RESET_ALL}")
     elif query == "SHOW":
+        print(f"{Fore.GREEN}{Back.BLACK}")
         print(cursor.query("SELECT * FROM MyDocuments").df())
+        print(f"{Style.RESET_ALL}")
     else:
         documents_dictionary = get_query_results(query, user_defined_limit)
         if user_defined_summarize:
-            print(summarize_with_LLM(documents_dictionary))
-        print(return_results(documents_dictionary))
-        print("_" * 100)
+            print(f"{Back.GREEN}{Fore.BLACK}Summary:{Back.RESET}{Fore.CYAN}\n{summarize_with_LLM(documents_dictionary)}{Style.RESET_ALL}")
+        print(f"{return_results(documents_dictionary)}{Style.RESET_ALL}")
+        print(f"{Fore.MAGENTA}{Back.YELLOW}{'#' * 200}{Style.RESET_ALL}")
     return False
 
 
@@ -313,20 +316,21 @@ def poll_and_update_table(path: str = DEFAULT_DOCS_PATH):
     docs_to_add = docs_in_directory.difference(stored_docs)
 
     for doc in docs_to_remove:
-        cursor.query(delete_doc_query.format(doc))
+        cursor.query(delete_doc_query.format(doc)).df()
 
     add_documents(list(docs_to_add))
 
     # drop pdfs
     cursor.query(drop_pdfs_query).df()
 
-    print("\n"*2 + f"Updated the database!\nAdded {', '.join(list(docs_to_add))}\nRemoved {', '.join(list(docs_to_remove))}" + "\n"*2)
+    if len(docs_to_add) > 0 or len(docs_to_remove) > 0:
+        print(f"{Back.BLACK}{Fore.MAGENTA}Updated the database!\nAdded {', '.join(list(docs_to_add))}\nRemoved {', '.join(list(docs_to_remove))}{Style.RESET_ALL}")
 
 
 # Complete end to end flow of query from user
 def process_query():
     initialize()
-    print("Initialized all tables and functions")
+    print(f"{Fore.BLACK}{Back.WHITE}Initialized all tables and functions{Style.RESET_ALL}")
     curr_time = time.time()
     while True:
         if time.time() - curr_time >= polling_interval:
