@@ -114,4 +114,4 @@ Exiting...
 ```
 
 ## More Details
-For more details including features and implementation, please check `Report.pdf`.
+For more details including features and implementation, please check [Report.pdf](https://github.gatech.edu/aagarwal622/AI_Search_Engine/blob/main/Report.pdf).
