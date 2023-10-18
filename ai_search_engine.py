@@ -24,7 +24,7 @@ DEFAULT_DOCS_PATH = "docs"
 DEFAULT_SENTENCE_FEATURE_EXTRACTOR_PATH = "./functions/sentence_feature_extractor.py"
 user_defined_limit = PARAGRAPHS_LIMIT
 user_defined_summarize = False
-polling_interval = 10
+polling_interval = 60
 
 
 # Break txt document into paragraphs (similar to how we do for pdf) and insert into my Documents.
@@ -48,6 +48,8 @@ def insert_text_file(path: str) -> None:
         data[i] = data[i].strip()
         if data[i].isspace() or len(data[i]) == 0:
             continue
+        data[i] = data[i].replace("\'","")
+        data[i] = data[i].replace(";","")
         values = "('{}', 1, {}, '{}')".format(path, count, data[i])
         # print("New insert query: {}".format(insert_query.format(values)))
         cursor.query(insert_query.format(values)).df()
@@ -67,7 +69,7 @@ def merge_pdfs():
     # insert all data from MyPDFs into MyDocuments
     for index, row in mypdfs_df.iterrows():
         cursor.query(insert_query.format(row['mypdfs.name'], row['mypdfs.page'], row['mypdfs.paragraph'],
-                                         row['mypdfs.data'])).df()
+                                         row['mypdfs.data'].replace("\'","").replace(";",""))).df()
 
 
 def read_and_store_documents(path: str = DEFAULT_DOCS_PATH) -> None:
@@ -266,10 +268,10 @@ def process_one_query() -> bool:
     if query == "exit":
         print(f"{Fore.RED}{Back.WHITE}Exiting...{Style.RESET_ALL}")
         return True
-    elif query == "SUMMARIZE":
+    elif query == "ENABLE SUMMARY":
         print(f"{Fore.GREEN}{Back.BLACK}Summarization enabled!{Style.RESET_ALL}")
         user_defined_summarize = True
-    elif query == "DISABLE SUMMARIZE":
+    elif query == "DISABLE SUMMARY":
         print(f"{Fore.GREEN}{Back.BLACK}Summarization disabled!{Style.RESET_ALL}")
         user_defined_summarize = False
     elif query.startswith("LIMIT"):
