@@ -5,6 +5,13 @@ Make sure that virtual environment is activated, and all the required dependenci
 python ai_search_engine.py
 ```
 
+## Versions
+```
+Python: 3.11.4
+EvaDB: 0.3.7
+OS: Ubuntu 22.04.3 LTS
+```
+
 ## Few example queries
 ### Example 1: With Summarization Enabled
 ```
