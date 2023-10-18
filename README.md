@@ -1,7 +1,9 @@
 # EvaDB Project 1: AI Search Engine
 ## How to run
 Make sure that virtual environment is activated, and all the required dependencies present in requirements.txt are installed.
-`python ai_search_engine.py`
+```
+python ai_search_engine.py
+```
 
 ## Few example queries
 ### Example 1: With Summarization Enabled
